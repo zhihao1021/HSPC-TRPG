@@ -265,6 +265,14 @@ async def _hidden_notice(message: DiscordMessage, text: str) -> None:
         print_exc()
 
 
+def _channel_link(message: DiscordMessage) -> str:
+    """產生遊戲頻道的可點擊連結;有 guild 時用 jump URL,否則退回頻道 mention。"""
+    channel_id = message.channel.id
+    if message.guild is not None:
+        return f"https://discord.com/channels/{message.guild.id}/{channel_id}"
+    return f"<#{channel_id}>"
+
+
 def _resolve_display_name(game_channel_id: int, user_id: int, fallback: str) -> str:
     """取得玩家在該遊戲頻道所屬群組中的顯示名稱。"""
     channel = bot.get_channel(game_channel_id)
@@ -315,6 +323,15 @@ async def _begin_chargen(conn: Connection, message: DiscordMessage) -> None:
         message,
         "你還沒有冒險角色!我已私訊你進行創角,請查看私訊並依指示完成,稍後再回到頻道行動。",
     )
+
+    # 私訊開頭附上遊戲頻道連結,避免與其他頻道搞混
+    try:
+        await dm.send(
+            f"👋 這裡是**角色創建**私訊。你正在為遊戲頻道 {_channel_link(message)} "
+            "建立角色,完成後請回到該頻道開始冒險。"
+        )
+    except Exception:  # noqa: BLE001
+        print_exc()
 
     now = datetime.now().astimezone()
     async with dm.typing():
