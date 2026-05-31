@@ -363,6 +363,16 @@ async def _handle_chargen(
         await message.channel.send(
             "✅ 角色建立完成!請回到遊戲頻道,開始你的冒險吧。"
         )
+        # 在遊戲頻道公開通知:該玩家已準備就緒加入冒險
+        game_channel = bot.get_channel(game_channel_id)
+        if isinstance(game_channel, Messageable):
+            try:
+                await game_channel.send(
+                    f"🎉 <@{author.id}> 的角色「{display_name}」已準備就緒,"
+                    "踏入了這場冒險!"
+                )
+            except Exception:  # noqa: BLE001 - 頻道可能不可用
+                print_exc()
 
 
 # ===================== Slash Commands =====================
