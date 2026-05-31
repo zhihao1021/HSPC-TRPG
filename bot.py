@@ -141,24 +141,48 @@ def _chunk(text: str, limit: int = DISCORD_MSG_LIMIT) -> list[str]:
     return chunks
 
 
-async def _send_result(channel: Messageable, result: GenerationResult) -> None:
+async def _first_send(
+    channel: Messageable,
+    reply_to: Optional[DiscordMessage],
+    content: Optional[str],
+    embeds: list[Embed],
+) -> None:
+    """送出第一則訊息;若有 reply_to 則以 reply 原訊息的方式回覆。"""
+    if reply_to is not None:
+        if content is not None:
+            await reply_to.reply(content=content, embeds=embeds)
+        else:
+            await reply_to.reply(embeds=embeds)
+    else:
+        if content is not None:
+            await channel.send(content=content, embeds=embeds)
+        else:
+            await channel.send(embeds=embeds)
+
+
+async def _send_result(
+    channel: Messageable,
+    result: GenerationResult,
+    reply_to: Optional[DiscordMessage] = None,
+) -> None:
     # 擲骰 Embed(由工具觸發,確保準確)
     dice_embeds = [_dice_embed(e) for e in result.dice_events]
 
     content_chunks = _chunk(result.content)
 
+    # 第一則訊息:以 reply 原訊息的方式回覆,並附上擲骰 Embed
     if not content_chunks:
-        # 沒有文字內容時,至少把骰子結果送出
         if dice_embeds:
-            await channel.send(embeds=dice_embeds[:10])
-        return
+            await _first_send(channel, reply_to, None, dice_embeds[:10])
+        rest = []
+    else:
+        await _first_send(
+            channel, reply_to, content_chunks[0], dice_embeds[:10]
+        )
+        rest = content_chunks[1:]
 
-    for idx, chunk in enumerate(content_chunks):
-        # 把擲骰 Embed 附在第一則訊息
-        if idx == 0 and dice_embeds:
-            await channel.send(content=chunk, embeds=dice_embeds[:10])
-        else:
-            await channel.send(content=chunk)
+    for chunk in rest:
+        await channel.send(content=chunk)
 
     if config.show_reasoning() and result.reasoning:
         for chunk in _chunk(f"🧠 思考過程:\n{result.reasoning}"):
@@ -250,7 +274,7 @@ async def _handle_message(message: DiscordMessage, now: datetime) -> None:
         async with message.channel.typing():
             result = await generate(conn, channel_id, now)
 
-    await _send_result(message.channel, result)
+    await _send_result(message.channel, result, reply_to=message)
 
 
 async def _hidden_notice(message: DiscordMessage, text: str) -> None:
@@ -371,7 +395,7 @@ async def _handle_chargen(
             conn, dm_channel_id, now, game_channel_id=game_channel_id, owner=owner
         )
 
-    await _send_result(message.channel, result)
+    await _send_result(message.channel, result, reply_to=message)
 
     # 創角完成 -> 結束臨時 session
     if result.character_created:
