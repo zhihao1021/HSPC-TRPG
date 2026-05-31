@@ -1,8 +1,9 @@
 from asyncpg import create_pool, Pool, Connection
 
 from contextlib import asynccontextmanager
-from os import getenv
 from typing import AsyncGenerator, Optional
+
+import config
 
 _pool: Optional[Pool] = None  # pylint: disable=invalid-name
 
@@ -19,12 +20,9 @@ async def init_db() -> AsyncGenerator[Pool, None]:
     global _pool  # pylint: disable=global-statement
     if _pool:
         raise RuntimeError("Database pool is already initialized.")
-    dsn = getenv(
-        "POSTGRES_DB_URL",
-        "postgresql://hspc:hspc@localhost:5432/hspc_trpg",
-    )
-    min_size = int(getenv("POSTGRES_POOL_MIN_SIZE", "5"))
-    max_size = int(getenv("POSTGRES_POOL_MAX_SIZE", "10"))
+    dsn = config.postgres_dsn()
+    min_size = config.postgres_pool_min()
+    max_size = config.postgres_pool_max()
 
     pool = await create_pool(
         dsn=dsn,
