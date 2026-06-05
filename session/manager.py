@@ -138,7 +138,27 @@ class SessionManager():
             await self._meta.save(conn=conn)
 
     async def reply_message(self, ctx: ChatContext, content: str) -> None:
-        pass
+        original_message = ctx.message
+        embeds = [
+            dice_event.to_discord_embed()
+            for dice_event in ctx.dice_events
+        ]
+
+        exceed_contents = [
+            content[offset:offset + 2000]
+            for offset in range(2000, len(content), 2000)
+        ]
+
+        if len(exceed_contents) == 0:
+            await original_message.reply(content, embeds=embeds)
+        else:
+            await original_message.reply(content)
+            exceed_count = len(exceed_contents)
+            for i, exceed_content in enumerate(exceed_contents):
+                await original_message.reply(
+                    exceed_content,
+                    embeds=embeds if i == exceed_count - 1 else None
+                )
 
     async def _task_func(self):
         while True:
