@@ -1,0 +1,34 @@
+{
+    "discord": {
+        "token": ""
+    },
+    "postgres": {
+        "url": "postgresql://hspc:hspc@localhost:5432/hspc_trpg",
+        "pool_size": {
+            "min": 8,
+            "max": 10
+        }
+    },
+    "llm": {
+        "api_key": "",
+        "base_url": "https://api.deepseek.com",
+        "mode": {
+            "game": {
+                "model": "deepseek-v4-pro",
+                "reasoning": true,
+                "temperature": 1.0,
+                "max_tokens": 4096,
+                "context_limit": 600000
+            },
+            "chargen": {
+                "model": "deepseek-v4-flash",
+                "reasoning": false,
+                "max_tokens": 4096,
+                "temperature": 1.0
+            }
+        },
+        "max_tool_iterations": 8,
+        "max_output_token": 4096,
+        "keep_history": 40
+    }
+}

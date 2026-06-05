@@ -1,4 +1,5 @@
 from openai.types.chat import (
+    ChatCompletionMessage,
     ChatCompletionMessageParam,
     ChatCompletionAssistantMessageParam
 )
@@ -10,6 +11,13 @@ class DeepseekChatCompletionAssistantMessageParam(ChatCompletionAssistantMessage
     """Custom assistant message parameter for Deepseek, extending the OpenAI type with additional fields."""
 
     reasoning_content: Optional[str]
+    """Additional field to store the model's reasoning process, if available."""
+
+
+class DeepseekChatCompletionMessage(ChatCompletionMessage):
+    """Custom chat completion message for Deepseek, extending the OpenAI type with additional fields."""
+
+    reasoning_content: Optional[str] = None
     """Additional field to store the model's reasoning process, if available."""
 
 

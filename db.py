@@ -3,7 +3,7 @@ from asyncpg import create_pool, Pool, Connection
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 
-import config
+from config import CONFIG
 
 _pool: Optional[Pool] = None  # pylint: disable=invalid-name
 
@@ -20,9 +20,9 @@ async def init_db() -> AsyncGenerator[Pool, None]:
     global _pool  # pylint: disable=global-statement
     if _pool:
         raise RuntimeError("Database pool is already initialized.")
-    dsn = config.postgres_dsn()
-    min_size = config.postgres_pool_min()
-    max_size = config.postgres_pool_max()
+    dsn = CONFIG.postgres.url
+    min_size = CONFIG.postgres.pool_size.min
+    max_size = CONFIG.postgres.pool_size.max
 
     pool = await create_pool(
         dsn=dsn,

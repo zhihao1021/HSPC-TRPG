@@ -13,6 +13,7 @@ class Session(BaseModel):
     channel_id: SnowflakeId
     created_at: datetime
     updated_at: datetime
+    seek_sid: SnowflakeId = SnowflakeId(0)
     summary: str = ""
     token_usage: int = 0
     kind: SessionKind = "game"
@@ -26,9 +27,15 @@ class Session(BaseModel):
         await conn.execute(
             """
             INSERT INTO sessions (
-                channel_id, summary, token_usage, kind, chargen_owner_id, chargen_channel_id
+                channel_id,
+                seek_sid,
+                summary,
+                token_usage,
+                kind,
+                chargen_owner_id,
+                chargen_channel_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (channel_id) DO UPDATE SET
                 updated_at = NOW(),
                 summary = EXCLUDED.summary,
@@ -38,6 +45,7 @@ class Session(BaseModel):
                 chargen_channel_id = EXCLUDED.chargen_channel_id
             """,
             int(self.channel_id),
+            int(self.seek_sid),
             self.summary,
             self.token_usage,
             self.kind,

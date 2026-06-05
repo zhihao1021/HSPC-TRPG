@@ -1,8 +1,6 @@
 from discord import Bot, Intents, Message as DiscordMessage
 
-from datetime import datetime
-
-import config
+from config import CONFIG
 from db import get_db
 from model.session import Session
 from session.manager import SessionManager
@@ -51,4 +49,4 @@ async def on_message(message: DiscordMessage) -> None:
 
 
 async def start():
-    await bot.start(config.discord_token())
+    await bot.start(CONFIG.discord.token)

@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     channel_id         BIGINT PRIMARY KEY,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    seek_sid           BIGINT NOT NULL DEFAULT 0,
     summary            TEXT NOT NULL DEFAULT '',
     token_usage        INTEGER NOT NULL DEFAULT 0,
     kind               TEXT NOT NULL DEFAULT 'game',

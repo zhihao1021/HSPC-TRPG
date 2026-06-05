@@ -7,7 +7,7 @@ from asyncio import CancelledError, gather, get_running_loop, Task, wait_for
 from asyncio.queues import Queue as AsyncQueue
 from typing import Optional
 
-import config
+from config import CONFIG
 from db import get_db
 from llm.client import DeepseekClient
 from model.message import Message
@@ -23,26 +23,32 @@ class SessionManager():
     _client: DeepseekClient
     _messages: list[ChatCompletionMessageParam]
     _task: Optional[Task]
+    _context_limit: int
+    _keep_recent: int
 
     def __init__(self, data: Session) -> None:
-        model = config.llm_model() if data.kind == "game"\
-            else config.chargen_model()
-        reasoning = config.llm_reasoning_enabled() if data.kind == "game"\
-            else config.chargen_reasoning_enabled()
+        model = CONFIG.llm.mode[data.kind].model
+        reasoning = CONFIG.llm.mode[data.kind].reasoning
+        max_tokens = CONFIG.llm.mode[data.kind].max_tokens
+        temperature = CONFIG.llm.mode[data.kind].temperature
+        self._context_limit = CONFIG.llm.mode[data.kind].context_limit
+        self._keep_recent = CONFIG.llm.mode[data.kind].keep_recent
 
         self._meta = data
         self._queue = AsyncQueue()
         self._client = DeepseekClient(
             model=model,
             reasoning=reasoning,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            chat_type=data.kind,
         )
         self._messages = []
         self._task = None
 
-    async def startup(self):
-        loop = get_running_loop()
+    async def _fetch_messages(self):
         async with get_db() as conn:
-            messages = await Message.get_all_by_channel_id(
+            messages = await Message.get_all_after_summary_by_channel_id(
                 conn=conn,
                 channel_id=self._meta.channel_id,
             )
@@ -52,7 +58,9 @@ class SessionManager():
             for message in messages
         ]
 
-        await self.recalc_token()
+    async def startup(self):
+        loop = get_running_loop()
+        await self._fetch_messages()
         self._task = loop.create_task(self._task_func())
 
     def shutdown(self):
@@ -72,7 +80,7 @@ class SessionManager():
         )
         return len(encode_data.tokens)
 
-    async def recalc_token(self):
+    async def _recalc_token(self, save: bool = True) -> None:
         total_content = ""
 
         for message in self._messages:
@@ -82,12 +90,6 @@ class SessionManager():
 
             if isinstance(content, str):
                 total_content += content
-            else:
-                content += "".join([
-                    part if isinstance(part, str)
-                    else part.get("text", "")
-                    for part in content
-                ])
 
         loop = get_running_loop()
         encode_data = await loop.run_in_executor(
@@ -98,7 +100,41 @@ class SessionManager():
         token_count = len(encode_data.tokens)
 
         self._meta.token_usage = token_count
+        if save:
+            async with get_db() as conn:
+                await self._meta.save(conn=conn)
+
+    async def check_and_summarize(self):
+        if self._meta.token_usage < self._context_limit:
+            return
+
+        last_summary = self._meta.summary
         async with get_db() as conn:
+            recent_split_message = await Message.get_recent_by_channel_id(
+                conn=conn,
+                channel_id=self._meta.channel_id,
+                keep_recent=self._keep_recent,
+            )
+            if recent_split_message is None:
+                return
+
+            recent_split_uid = recent_split_message.uid
+            need_summary_messages = await Message.get_need_summary_by_channel_id(
+                conn=conn,
+                channel_id=self._meta.channel_id,
+                recent_uid=recent_split_uid,
+            )
+
+            new_summary = await self._client.summarize(
+                last_summary=last_summary,
+                messages=need_summary_messages,
+            )
+
+            self._meta.summary = new_summary
+            self._meta.seek_sid = recent_split_uid
+
+            await self._fetch_messages()
+            await self._recalc_token(save=False)
             await self._meta.save(conn=conn)
 
     async def reply_message(self, ctx: ChatContext, content: str) -> None:
@@ -159,6 +195,8 @@ class SessionManager():
             async with get_db() as conn:
                 await message.save(conn=conn)
                 await self._meta.save(conn=conn)
+
+            await self.check_and_summarize()
 
     def enqueue(
         self,
