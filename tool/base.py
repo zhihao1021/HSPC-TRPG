@@ -12,11 +12,12 @@ from typing import (
     Callable,
     ClassVar,
     Generic,
+    Iterable,
     Optional,
     TypeVar,
 )
 
-from .types.chat_context import ChatContext
+from .types.chat_context import ChatContext, SessionKind
 
 T = TypeVar("T", bound=BaseModel)
 U = TypeVar("U", bound=Any)
@@ -28,18 +29,21 @@ class ToolData(Generic[U]):
     _func: Callable[..., U]
     _description: str
     _tool_param: type[BaseModel]
+    _scope: Iterable[SessionKind]
 
     def __init__(
         self,
         class_name: str,
         name: str,
         func: Callable[..., U],
+        scope: Iterable[SessionKind],
         description: str = "",
     ) -> None:
         self._class_name = class_name
         self._name = name
         self._func = func
         self._description = description
+        self._scope = scope
 
         parameters = list(signature(func).parameters.values())
         if len(parameters) != 2:
@@ -48,6 +52,10 @@ class ToolData(Generic[U]):
 
         _, tool_param = parameters
         self._tool_param = tool_param.annotation
+
+    @property
+    def scope(self) -> Iterable[SessionKind]:
+        return self._scope
 
     @property
     def function_name(self) -> str:
@@ -76,7 +84,7 @@ class ToolBase():
     _registered_tools: ClassVar[dict[str, ToolData]]
 
     def __init_subclass__(cls) -> None:
-        cls.__class_name__ = getattr(cls, "class_name", cls.__name__)
+        cls.__class_name__ = getattr(cls, "__class_name__", cls.__name__)
         cls._registered_tools = {}
 
     @classmethod
@@ -84,6 +92,7 @@ class ToolBase():
         cls,
         description: str,
         name: Optional[str] = None,
+        scope: Iterable[SessionKind] = ["game", "chargen"],
     ) -> Callable[[Callable[[ChatContext, T], U]], Callable[[ChatContext, T], U]]:
         def dec(func: Callable[[ChatContext, T], U]) -> Callable[[ChatContext, T], U]:
             tool = ToolData(
@@ -91,6 +100,7 @@ class ToolBase():
                 name=name or func.__name__,
                 func=func,
                 description=description,
+                scope=scope
             )
             cls._registered_tools[tool.function_name] = tool
             return func
@@ -98,8 +108,12 @@ class ToolBase():
         return dec
 
     @classmethod
-    def to_openai_tools(cls) -> list[ChatCompletionFunctionToolParam]:
-        return [tool.to_openai() for tool in cls._registered_tools.values()]
+    def to_openai_tools(cls, session: SessionKind) -> list[ChatCompletionFunctionToolParam]:
+        return [
+            tool.to_openai()
+            for tool in cls._registered_tools.values()
+            if session in tool.scope
+        ]
 
     @classmethod
     async def call_tool(

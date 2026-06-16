@@ -16,6 +16,7 @@ from model.message import Message
 from model.session import SessionKind
 from tool.base import ToolBase
 from tool.dice import DiceTool
+from tool.user import UserTool
 from tool.types.chat_context import ChatContext
 from type.chat import (
     DeepseekChatCompletionMessage,
@@ -29,12 +30,7 @@ PROMPT_STORE = PromptStore()
 
 TOOL_CLASSES: list[type[ToolBase]] = [
     DiceTool,
-]
-
-TOOLS: list[ChatCompletionFunctionToolParam] = [
-    tool
-    for tool_cls in TOOL_CLASSES
-    for tool in tool_cls.to_openai_tools()
+    UserTool,
 ]
 
 
@@ -44,7 +40,7 @@ class DeepseekClient():
     _reasoning: bool
     _max_tokens: int
     _temperature: float
-    _chat_type: SessionKind
+    _session_kind: SessionKind
 
     def __init__(
         self,
@@ -52,7 +48,7 @@ class DeepseekClient():
         reasoning: bool = False,
         max_tokens: int = 4096,
         temperature: float = 1.0,
-        chat_type: SessionKind = "game",
+        session_kind: SessionKind = "game",
     ) -> None:
         self._client = AsyncOpenAI(
             api_key=CONFIG.llm.api_key,
@@ -62,13 +58,13 @@ class DeepseekClient():
         self._reasoning = reasoning
         self._max_tokens = max_tokens
         self._temperature = temperature
-        self._chat_type = chat_type
+        self._session_kind = session_kind
 
     def _build_messages(
         self,
         messages: list[DeepseekChatCompletionMessageParam],
     ) -> list[DeepseekChatCompletionMessageParam]:
-        system_prompt = PROMPT_STORE.get_prompt(self._chat_type)
+        system_prompt = PROMPT_STORE.get_prompt(self._session_kind)
         system_message = ChatCompletionSystemMessageParam(
             role="system",
             content=system_prompt,
@@ -79,6 +75,11 @@ class DeepseekClient():
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": self._max_tokens,
+            "tools": [
+                tool
+                for tool_cls in TOOL_CLASSES
+                for tool in tool_cls.to_openai_tools(session=self._session_kind)
+            ]
         }
 
         if self._reasoning:
@@ -89,7 +90,6 @@ class DeepseekClient():
             kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
 
         if with_tools:
-            kwargs["tools"] = TOOLS
             kwargs["tool_choice"] = "auto"
         else:
             kwargs["tool_choice"] = "none"
@@ -108,7 +108,7 @@ class DeepseekClient():
         return f"Error: unknown tool '{tool_call.function.name}'"
 
     async def generate_intro(self) -> str:
-        intro_prompt = PROMPT_STORE.get_prompt(f"{self._chat_type}_intro")
+        intro_prompt = PROMPT_STORE.get_prompt(f"{self._session_kind}_intro")
         messages = self._build_messages([
             ChatCompletionUserMessageParam(
                 role="user",
@@ -118,6 +118,7 @@ class DeepseekClient():
 
         response: ChatCompletion = await self._client.chat.completions.create(
             messages=messages,
+            model=self._model,
             **self._create_kwargs(with_tools=False),
         )
 

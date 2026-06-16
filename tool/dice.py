@@ -43,6 +43,7 @@ class DiceRollParam(BaseModel):
 
 
 @DiceTool.register(
+    scope=["game"],
     description="Roll a specified number of dice with a specified number of sides, and an optional modifier."
     "Can be used for any kind of roll, such as attack rolls, damage rolls, or skill checks."
     "The reason field can be used to provide context for the roll, which may be included in the response."
