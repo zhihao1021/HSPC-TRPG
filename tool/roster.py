@@ -35,13 +35,17 @@ async def list_teams(context: ChatContext, params: ListTeamsParam) -> dict:
     entries = await Roster.get_all_by_channel_id(context.conn, context.channel_id)
 
     def to_item(entry: Roster) -> dict:
-        return {
-            "name": entry.name,
+        due = roster_game.is_due(entry, today)
+        result = {
             "suggested_date": entry.suggested.date().isoformat(),
             "revealed": entry.revealed,
             "revealed_at": entry.revealed_at.isoformat() if entry.revealed_at else None,
-            "due": roster_game.is_due(entry, today),
+            "due": due,
         }
+        if due:
+            result["name"] = entry.name
+
+        return result
 
     if params.status == "revealed":
         selected = [e for e in entries if e.revealed]
