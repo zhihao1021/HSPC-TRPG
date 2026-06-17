@@ -361,10 +361,14 @@ class SessionManager():
 
     # ----- 開場導言 -----
 
-    async def send_opening(self, channel: Messageable) -> None:
-        """產生並送出開場導言(/start 的遊戲開場或私訊創角的開場引導)。"""
+    async def send_opening(self, channel: Messageable, world: str = "") -> None:
+        """產生並送出開場導言(/start 的遊戲開場或私訊創角的開場引導)。
+
+        world: 主持人於 /start 時填入的世界觀描述,僅用於生成開場白;
+            開場白存入歷史後即成為後續劇情的參考,不需另行保存。
+        """
         async with get_db() as conn:
-            content = await self._client.generate_opening()
+            content = await self._client.generate_opening(world)
 
             opening = Message(
                 channel_id=SnowflakeId(int(self._meta.channel_id)),

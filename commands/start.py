@@ -1,4 +1,4 @@
-from discord import ApplicationContext, Cog, Member, slash_command
+from discord import ApplicationContext, Cog, Member, Option, slash_command
 from discord.abc import Messageable
 
 from config import CONFIG
@@ -18,7 +18,16 @@ class StartCog(Cog):
         name="start",
         description="(管理員) 在本頻道開始一場新的 TRPG 冒險",
     )
-    async def start(self, ctx: ApplicationContext) -> None:
+    async def start(
+        self,
+        ctx: ApplicationContext,
+        world: Option(  # type: ignore[valid-type]
+            str,
+            "描述這是一個什麼樣的世界(選填),用來生成開場白",
+            required=False,
+            default="",
+        ),
+    ) -> None:
         if ctx.guild is None or ctx.channel is None:
             await ctx.respond("此指令只能在伺服器頻道中使用。", ephemeral=True)
             return
@@ -59,7 +68,7 @@ class StartCog(Cog):
 
         channel = ctx.channel
         if isinstance(channel, Messageable):
-            await manager.send_opening(channel)
+            await manager.send_opening(channel, world=world or "")
 
 
 def setup(bot: TRPGBot) -> None:

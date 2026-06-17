@@ -121,14 +121,26 @@ class DeepseekClient():
                 return result
         return f"Error: unknown tool '{tool_call.function.name}'"
 
-    async def generate_opening(self) -> str:
+    async def generate_opening(self, world: str = "") -> str:
         intro_prompt = PROMPT_STORE.get_prompt(f"{self._session_kind}_intro")
-        messages = self._build_messages(None, [
-            ChatCompletionUserMessageParam(
+
+        user_messages: list[DeepseekChatCompletionMessageParam] = []
+        if world:
+            user_messages.append(ChatCompletionUserMessageParam(
                 role="user",
-                content=intro_prompt,
-            ),
-        ])
+                content=(
+                    "【本場冒險的世界觀設定(由主持人於開場時提供)】\n"
+                    f"{world}\n\n"
+                    "請務必以上述世界觀為基礎來撰寫這場冒險的開場;"
+                    "這段開場將成為後續所有劇情的世界觀基準。"
+                ),
+            ))
+        user_messages.append(ChatCompletionUserMessageParam(
+            role="user",
+            content=intro_prompt,
+        ))
+
+        messages = self._build_messages(None, user_messages)
 
         response: ChatCompletion = await self._client.chat.completions.create(
             messages=messages,
