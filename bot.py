@@ -49,7 +49,7 @@ async def on_message(message: DiscordMessage) -> None:
     if manager is None:
         return
 
-    manager.enqueue(message)
+    await manager.submit(message)
 
 
 for _extension in EXTENSIONS:

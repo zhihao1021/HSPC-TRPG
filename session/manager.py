@@ -74,6 +74,7 @@ class SessionManager():
     _task: Optional[Task]
     _context_limit: int
     _keep_recent: int
+    _chargen_inflight: set[int]
 
     def __init__(self, data: Session, host: SessionHost) -> None:
         mode = CONFIG.llm.mode[data.kind]
@@ -92,6 +93,7 @@ class SessionManager():
         )
         self._messages = []
         self._task = None
+        self._chargen_inflight = set()
 
     # ----- 生命週期 -----
 
@@ -118,6 +120,44 @@ class SessionManager():
         if self._meta.channel_id != message.channel.id:
             raise ValueError("Message channel does not match session channel.")
         self._queue.put_nowait(message)
+
+    async def needs_character_creation(self, message: DiscordMessage) -> bool:
+        """遊戲頻道中,發話玩家是否尚未建立角色(需先導向私訊創角)。
+
+        僅遊戲 session 需要此判斷;創角 session 一律回傳 False。
+        """
+        if self._meta.kind != "game":
+            return False
+        async with get_db() as conn:
+            user = await User.get_by_uid_and_channel_id(
+                conn, message.author.id, int(self._meta.channel_id)
+            )
+        return user is None
+
+    async def submit(self, message: DiscordMessage) -> None:
+        """接收一則新訊息。在進佇列前先判斷是否需要創角:
+
+        - 需要創角的玩家:立即導向私訊創角,**不進入遊戲佇列**,
+          避免卡在前面尚未處理完的遊戲對話之後才能開始創角。
+        - 其餘訊息:排入佇列由 worker 依序處理。
+        """
+        if not await self.needs_character_creation(message):
+            self.enqueue(message)
+            return
+
+        author_id = message.author.id
+        # 同一玩家連續訊息可能並發觸發,以 in-flight 集合避免重複開啟創角
+        if author_id in self._chargen_inflight:
+            return
+        self._chargen_inflight.add(author_id)
+        try:
+            await self._host.begin_chargen(
+                game_channel_id=int(self._meta.channel_id),
+                author=message.author,
+                trigger=message,
+            )
+        finally:
+            self._chargen_inflight.discard(author_id)
 
     # ----- token 計算與摘要 -----
 
@@ -353,19 +393,6 @@ class SessionManager():
                 return False
 
         async with get_db() as conn:
-            # 一般遊戲:沒有角色的玩家先導向私訊創角,不在頻道回應
-            if self._meta.kind == "game":
-                user = await User.get_by_uid_and_channel_id(
-                    conn, discord_message.author.id, channel_id
-                )
-                if user is None:
-                    await self._host.begin_chargen(
-                        game_channel_id=channel_id,
-                        author=discord_message.author,
-                        trigger=discord_message,
-                    )
-                    return False
-
             ctx = self._build_context(conn, discord_message, now)
             user_message = Message(
                 channel_id=SnowflakeId(channel_id),
