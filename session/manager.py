@@ -277,7 +277,7 @@ class SessionManager():
                     reasoning_content=msg.get("reasoning_content"),
                     tool_calls=[
                         call_data
-                        for call_data in msg.get("tool_calls", [])
+                        for call_data in msg.get("tool_calls") or []
                         if "function" in call_data
                     ] or None,
                 ))
