@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from pydantic_snowflake import SnowflakeId
 
 from datetime import datetime
-from typing import Optional, Self
+from typing import Iterable, Optional, Self
 
 from type.uid import UidType
 
@@ -12,8 +12,8 @@ class Roster(BaseModel):
     channel_id: SnowflakeId
     name: str
     suggested: datetime
-    revealed: bool
-    revealed_at: datetime
+    revealed: bool = False
+    revealed_at: Optional[datetime] = None
 
     async def save(self, conn: Connection) -> None:
         await conn.execute(
@@ -53,6 +53,78 @@ class Roster(BaseModel):
             )
 
         return [cls.model_validate(row) for row in rows]
+
+    @classmethod
+    async def seed(
+        cls,
+        conn: Connection,
+        channel_id: UidType,
+        teams: Iterable[tuple[str, datetime]],
+    ) -> int:
+        """以 (name, suggested) 種入名單;重複的 (channel_id, name) 略過。回傳種入筆數。"""
+        rows = [
+            (int(channel_id), name, suggested)
+            for name, suggested in teams
+        ]
+        await conn.executemany(
+            """
+            INSERT INTO roster (channel_id, name, suggested)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (channel_id, name) DO NOTHING
+            """,
+            rows,
+        )
+        return len(rows)
+
+    @classmethod
+    async def reveal(
+        cls,
+        conn: Connection,
+        channel_id: UidType,
+        name: str,
+    ) -> Optional[Self]:
+        """標記某隊伍為已公布並回傳;若查無該隊伍則回傳 None。"""
+        row = await conn.fetchrow(
+            """
+            UPDATE roster
+            SET revealed = TRUE, revealed_at = NOW()
+            WHERE channel_id = $1 AND name = $2
+            RETURNING *
+            """,
+            int(channel_id),
+            name,
+        )
+        return cls.model_validate(row) if row else None
+
+    @classmethod
+    async def set_suggested(
+        cls,
+        conn: Connection,
+        channel_id: UidType,
+        name: str,
+        suggested: datetime,
+    ) -> Optional[Self]:
+        """調整指定隊伍的建議公布時間並回傳更新後資料;查無該隊伍則回傳 None。"""
+        row = await conn.fetchrow(
+            """
+            UPDATE roster
+            SET suggested = $3
+            WHERE channel_id = $1 AND name = $2
+            RETURNING *
+            """,
+            int(channel_id),
+            name,
+            suggested,
+        )
+        return cls.model_validate(row) if row else None
+
+    @classmethod
+    async def count_remaining(cls, conn: Connection, channel_id: UidType) -> int:
+        count_val = await conn.fetchval(
+            "SELECT COUNT(*) FROM roster WHERE channel_id = $1 AND NOT revealed",
+            int(channel_id),
+        )
+        return count_val or 0
 
     @classmethod
     async def count_by_channel_id(

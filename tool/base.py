@@ -75,7 +75,7 @@ class ToolData(Generic[U]):
     ) -> U:
         return self._func(
             ctx,
-            self._tool_param.model_validate(tool_call.function.arguments)
+            self._tool_param.model_validate_json(tool_call.function.arguments)
         )
 
 

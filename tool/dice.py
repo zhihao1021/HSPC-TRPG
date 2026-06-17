@@ -34,6 +34,7 @@ class DiceRollParam(BaseModel):
         description="Optional reason for the roll, included in the response.",
     )
     dc: Optional[int] = Field(
+        default=None,
         description="Optional difficulty class (DC) to compare the roll against."
     )
     description: Optional[str] = Field(
@@ -43,7 +44,7 @@ class DiceRollParam(BaseModel):
 
 
 @DiceTool.register(
-    scope=["game"],
+    scope=["game", "chargen"],
     description="Roll a specified number of dice with a specified number of sides, and an optional modifier."
     "Can be used for any kind of roll, such as attack rolls, damage rolls, or skill checks."
     "The reason field can be used to provide context for the roll, which may be included in the response."

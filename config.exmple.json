@@ -27,8 +27,13 @@
                 "temperature": 1.0
             }
         },
-        "max_tool_iterations": 8,
-        "max_output_token": 4096,
-        "keep_history": 40
+        "max_tool_iterations": 8
+    },
+    "game": {
+        "show_reasoning": false,
+        "roster": {
+            "file": "data/roster.json",
+            "revealed_dir": "data/revealed"
+        }
     }
 }

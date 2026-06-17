@@ -9,13 +9,16 @@ from openai.types.chat import (
 )
 
 from asyncio import gather
-from typing import Any, cast
+from typing import Any, cast, Optional
 
 from config import CONFIG
+from game import roster as roster_game
 from model.message import Message
+from model.roster import Roster
 from model.session import SessionKind
 from tool.base import ToolBase
 from tool.dice import DiceTool
+from tool.roster import RosterTool
 from tool.user import UserTool
 from tool.types.chat_context import ChatContext
 from type.chat import (
@@ -31,6 +34,7 @@ PROMPT_STORE = PromptStore()
 TOOL_CLASSES: list[type[ToolBase]] = [
     DiceTool,
     UserTool,
+    RosterTool,
 ]
 
 
@@ -62,6 +66,7 @@ class DeepseekClient():
 
     def _build_messages(
         self,
+        ctx: Optional[ChatContext],
         messages: list[DeepseekChatCompletionMessageParam],
     ) -> list[DeepseekChatCompletionMessageParam]:
         system_prompt = PROMPT_STORE.get_prompt(self._session_kind)
@@ -69,7 +74,16 @@ class DeepseekClient():
             role="system",
             content=system_prompt,
         )
-        return [system_message, *messages]
+
+        system_prompts = [system_message]
+        if ctx and ctx.summary:
+            system_prompts.append(
+                ChatCompletionSystemMessageParam(
+                    role="system",
+                    content="[長期劇情摘要]\n" + ctx.summary,
+                )
+            )
+        return system_prompts + messages
 
     def _create_kwargs(self, *, with_tools: bool) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
@@ -107,9 +121,9 @@ class DeepseekClient():
                 return result
         return f"Error: unknown tool '{tool_call.function.name}'"
 
-    async def generate_intro(self) -> str:
+    async def generate_opening(self) -> str:
         intro_prompt = PROMPT_STORE.get_prompt(f"{self._session_kind}_intro")
-        messages = self._build_messages([
+        messages = self._build_messages(None, [
             ChatCompletionUserMessageParam(
                 role="user",
                 content=intro_prompt,
@@ -118,7 +132,6 @@ class DeepseekClient():
 
         response: ChatCompletion = await self._client.chat.completions.create(
             messages=messages,
-            model=self._model,
             **self._create_kwargs(with_tools=False),
         )
 
@@ -129,13 +142,16 @@ class DeepseekClient():
         ctx: ChatContext,
         messages: list[DeepseekChatCompletionMessageParam],
     ) -> list[DeepseekChatCompletionMessageParam]:
-        system_messages = self._build_messages(messages)
+        system_messages = self._build_messages(ctx, messages)
         new_messages: list[DeepseekChatCompletionMessageParam] = []
 
-        for _ in range(CONFIG.llm.max_tool_iterations):
+        max_iters = CONFIG.llm.max_tool_iterations
+        for i in range(max_iters):
+            # 最後一輪強制不再呼叫工具,確保最終產出文字回覆
+            with_tools = i < max_iters - 1
             response: ChatCompletion = await self._client.chat.completions.create(
                 messages=system_messages + new_messages,
-                **self._create_kwargs(with_tools=True),
+                **self._create_kwargs(with_tools=with_tools),
             )
 
             choice = response.choices[0]

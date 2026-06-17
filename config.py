@@ -44,10 +44,21 @@ class LLMConfig(BaseModel):
     max_tool_iterations: int = Field(8, ge=1)
 
 
+class RosterConfig(BaseModel):
+    file: str = "data/roster.json"
+    revealed_dir: str = "data/revealed"
+
+
+class GameConfig(BaseModel):
+    show_reasoning: bool = False
+    roster: RosterConfig = RosterConfig()
+
+
 class Config(BaseModel):
     discord: DiscordConfig
     postgres: PostgresConfig
     llm: LLMConfig
+    game: GameConfig = GameConfig()
 
 
 with open("config.json", "rb") as config_file:

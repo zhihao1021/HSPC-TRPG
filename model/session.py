@@ -66,3 +66,82 @@ class Session(BaseModel):
     async def get_all(cls, conn: Connection) -> list[Self]:
         rows = await conn.fetch("SELECT * FROM sessions")
         return [cls.model_validate(row) for row in rows]
+
+    @classmethod
+    async def exists(cls, conn: Connection, channel_id: UidType) -> bool:
+        return bool(await conn.fetchval(
+            "SELECT 1 FROM sessions WHERE channel_id = $1",
+            int(channel_id),
+        ))
+
+    @classmethod
+    async def create(
+        cls,
+        conn: Connection,
+        channel_id: UidType,
+        kind: SessionKind = "game",
+        *,
+        chargen_owner_id: Optional[UidType] = None,
+        chargen_channel_id: Optional[UidType] = None,
+    ) -> Self:
+        now = datetime.now(timezone.utc)
+        session = cls(
+            channel_id=SnowflakeId(int(channel_id)),
+            created_at=now,
+            updated_at=now,
+            kind=kind,
+            chargen_owner_id=(
+                SnowflakeId(int(chargen_owner_id))
+                if chargen_owner_id is not None else None
+            ),
+            chargen_channel_id=(
+                SnowflakeId(int(chargen_channel_id))
+                if chargen_channel_id is not None else None
+            ),
+        )
+        await session.save(conn)
+        return session
+
+    @classmethod
+    async def create_chargen(
+        cls,
+        conn: Connection,
+        channel_id: UidType,
+        chargen_owner_id: UidType,
+        chargen_channel_id: UidType,
+    ) -> Self:
+        """建立私訊創角用的臨時 session(channel_id 為玩家 DM 頻道)。"""
+        return await cls.create(
+            conn,
+            channel_id,
+            kind="chargen",
+            chargen_owner_id=chargen_owner_id,
+            chargen_channel_id=chargen_channel_id,
+        )
+
+    @classmethod
+    async def find_chargen(
+        cls,
+        conn: Connection,
+        chargen_owner_id: UidType,
+        chargen_channel_id: UidType,
+    ) -> Optional[Self]:
+        """尋找某玩家對某遊戲頻道進行中的創角 session。"""
+        row = await conn.fetchrow(
+            """
+            SELECT * FROM sessions
+            WHERE kind = 'chargen'
+                AND chargen_owner_id = $1
+                AND chargen_channel_id = $2
+            """,
+            int(chargen_owner_id),
+            int(chargen_channel_id),
+        )
+        return cls.model_validate(row) if row else None
+
+    @classmethod
+    async def delete(cls, conn: Connection, channel_id: UidType) -> None:
+        await conn.execute(
+            "DELETE FROM sessions WHERE channel_id = $1",
+            int(channel_id),
+        )
