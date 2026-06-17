@@ -59,7 +59,7 @@ class ToolData(Generic[U]):
 
     @property
     def function_name(self) -> str:
-        return f"{self._class_name}.{self._name}"
+        return f"{self._class_name}-{self._name}"
 
     def to_openai(self) -> ChatCompletionFunctionToolParam:
         return pydantic_function_tool(
