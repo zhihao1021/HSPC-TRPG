@@ -98,6 +98,8 @@ def start():
 
 if __name__ == "__main__":
     setup_logging()
+    logger = getLogger(__name__)
+    logger.info("Starting TRPG Bot...")
     try:
         start()
     except KeyboardInterrupt:
