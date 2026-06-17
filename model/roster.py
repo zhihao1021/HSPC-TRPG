@@ -52,7 +52,7 @@ class Roster(BaseModel):
                 int(channel_id),
             )
 
-        return [cls.model_validate(row) for row in rows]
+        return [cls.model_validate(dict(row)) for row in rows]
 
     @classmethod
     async def seed(
@@ -94,7 +94,7 @@ class Roster(BaseModel):
             int(channel_id),
             name,
         )
-        return cls.model_validate(row) if row else None
+        return cls.model_validate(dict(row)) if row else None
 
     @classmethod
     async def set_suggested(
@@ -116,7 +116,7 @@ class Roster(BaseModel):
             name,
             suggested,
         )
-        return cls.model_validate(row) if row else None
+        return cls.model_validate(dict(row)) if row else None
 
     @classmethod
     async def count_remaining(cls, conn: Connection, channel_id: UidType) -> int:

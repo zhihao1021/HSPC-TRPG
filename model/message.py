@@ -107,7 +107,7 @@ class Message(BaseModel):
             int(uid),
         )
 
-        return cls.model_validate(row) if row else None
+        return cls.model_validate(dict(row)) if row else None
 
     @classmethod
     async def get_all_by_channel_id(cls, conn: Connection, channel_id: UidType) -> list[Self]:
@@ -115,7 +115,7 @@ class Message(BaseModel):
             "SELECT * FROM messages WHERE channel_id = $1 ORDER BY uid ASC",
             int(channel_id),
         )
-        return [cls.model_validate(row) for row in rows]
+        return [cls.model_validate(dict(row)) for row in rows]
 
     @classmethod
     async def get_all_after_summary_by_channel_id(
@@ -129,7 +129,7 @@ class Message(BaseModel):
                 AND uid >= (SELECT seek_sid FROM sessions WHERE channel_id = $1)
             ORDER BY uid ASC
         """, int(channel_id))
-        return [cls.model_validate(row) for row in rows]
+        return [cls.model_validate(dict(row)) for row in rows]
     
     @classmethod
     async def get_recent_by_channel_id(
@@ -145,7 +145,7 @@ class Message(BaseModel):
             LIMIT 1 OFFSET $2
         """, int(channel_id), keep_recent - 1)
 
-        return cls.model_validate(row) if row else None
+        return cls.model_validate(dict(row)) if row else None
 
     @classmethod
     async def get_need_summary_by_channel_id(
@@ -161,4 +161,4 @@ class Message(BaseModel):
                 AND uid < $2
             ORDER BY uid ASC
         """, int(channel_id), int(recent_uid))
-        return [cls.model_validate(row) for row in rows]
+        return [cls.model_validate(dict(row)) for row in rows]

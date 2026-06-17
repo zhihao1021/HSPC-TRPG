@@ -60,12 +60,12 @@ class Session(BaseModel):
             int(channel_id),
         )
 
-        return cls.model_validate(row) if row else None
+        return cls.model_validate(dict(row)) if row else None
 
     @classmethod
     async def get_all(cls, conn: Connection) -> list[Self]:
         rows = await conn.fetch("SELECT * FROM sessions")
-        return [cls.model_validate(row) for row in rows]
+        return [cls.model_validate(dict(row)) for row in rows]
 
     @classmethod
     async def exists(cls, conn: Connection, channel_id: UidType) -> bool:
@@ -137,7 +137,7 @@ class Session(BaseModel):
             int(chargen_owner_id),
             int(chargen_channel_id),
         )
-        return cls.model_validate(row) if row else None
+        return cls.model_validate(dict(row)) if row else None
 
     @classmethod
     async def delete(cls, conn: Connection, channel_id: UidType) -> None:

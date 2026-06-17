@@ -95,7 +95,7 @@ class User(BaseModel):
             int(channel_id),
         )
 
-        return cls.model_validate(row) if row else None
+        return cls.model_validate(dict(row)) if row else None
 
     @classmethod
     async def get_all_by_channel_id(cls, conn: Connection, channel_id: UidType) -> list[Self]:
@@ -104,4 +104,4 @@ class User(BaseModel):
             int(channel_id),
         )
 
-        return [cls.model_validate(row) for row in rows]
+        return [cls.model_validate(dict(row)) for row in rows]
