@@ -1,4 +1,4 @@
-from discord import Embed, Message as DiscordMessage
+from discord import Embed, Message as DiscordMessage, NotFound, Forbidden
 from discord.abc import Messageable
 from pydantic_snowflake import SnowflakeId
 from tokenizers import Tokenizer
@@ -35,14 +35,35 @@ def _resolve_mentions(message: DiscordMessage) -> str:
     return content
 
 
-def _build_player_block(message: DiscordMessage, now: datetime) -> str:
+async def _build_player_block(message: DiscordMessage, now: datetime) -> str:
     """把玩家訊息組裝成含時間、名稱、ID 的結構化區塊。"""
     resolved = _resolve_mentions(message)
     author = message.author
     injection_id = urandom(4).hex()
+
+    reference = message.reference
+    reply_content = ""
+    if reference is not None and reference.resolved is not None:
+        text_channel = message.channel
+        reply_message = reference.resolved
+        if reply_message is None and reference.message_id:
+            try:
+                reply_message = await text_channel.fetch_message(reference.message_id)
+            except (NotFound, Forbidden):
+                pass
+
+        if isinstance(reply_message, DiscordMessage) and reply_message.author.id != author.id:
+            reply_resolved = _resolve_mentions(reply_message)
+            reply_content = (
+                f"[Reply][To: {reply_message.author.display_name} (ID: {reply_message.author.id})]\n"
+                f"{reply_resolved}\n"
+                f"[ReplyEnd]\n"
+            )
+
     return (
         f"[Datetime]{now.strftime('%Y-%m-%d %H:%M:%S')}\n"
         f"[Player]{author.display_name} (ID: {author.id})\n"
+        f"{reply_content}"
         f"[MessageStart][{injection_id}]\n"
         f"{resolved}\n"
         f"[MessageEnd][{injection_id}]\n"
@@ -404,7 +425,7 @@ class SessionManager():
                 message_id=SnowflakeId(discord_message.id),
                 role="user",
                 name=discord_message.author.display_name,
-                content=_build_player_block(discord_message, now),
+                content=await _build_player_block(discord_message, now),
             )
             user_openai = user_message.to_openai()
 
