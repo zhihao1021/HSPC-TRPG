@@ -68,19 +68,21 @@ class StatusCog(Cog):
                 value=(
                     f"等級 `{user.level}`\n"
                     f"HP `{user.hp}/{user.max_hp}`\n"
-                    f"STR `{user.state_str}\n"
-                    f"DEX `{user.state_dex}\n"
-                    f"CON `{user.state_con}\n"
-                    f"INT `{user.state_int}\n"
-                    f"WIS `{user.state_wis}\n"
+                    f"STR `{user.state_str}`\n"
+                    f"DEX `{user.state_dex}`\n"
+                    f"CON `{user.state_con}`\n"
+                    f"INT `{user.state_int}`\n"
+                    f"WIS `{user.state_wis}`\n"
                     f"CHA `{user.state_cha}`"
-                )
+                ),
+                inline=False,
             )
-            embed.add_field(name="技能", value=skills)
-            embed.add_field(name="裝備", value=inventory)
+            embed.add_field(name="技能", value=skills, inline=False,)
+            embed.add_field(name="裝備", value=inventory, inline=False,)
             embed.add_field(
                 name="角色摘要",
-                value=user.summary or "無"
+                value=user.summary or "無",
+                inline=False,
             )
         await ctx.respond(embed=embed)
 
