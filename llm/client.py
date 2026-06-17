@@ -175,10 +175,10 @@ class DeepseekClient():
                 if tool_call.type == "function"
             ]
 
-            tool_results = await gather(*[
-                self._dispatch_tool(ctx, tool_call)
+            tool_results = [
+                await self._dispatch_tool(ctx, tool_call)
                 for tool_call in function_tool_calls
-            ])
+            ]
             tool_params = [
                 ChatCompletionToolMessageParam(
                     role="tool",

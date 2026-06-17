@@ -1,6 +1,6 @@
 from asyncpg import Connection
-from orjson import dumps
-from pydantic import BaseModel
+from orjson import dumps, loads
+from pydantic import BaseModel, model_validator
 from pydantic_snowflake import SnowflakeId
 
 from typing import Optional, Self
@@ -38,6 +38,24 @@ class User(BaseModel):
     skills: list[UserSkill] = []
     inventory: list[UserInventoryItem] = []
 
+    @model_validator(mode="before")
+    def validate_skills_and_inventory(cls, values: dict) -> dict:
+        skills = values.get("skills")
+        if isinstance(skills, str):
+            try:
+                values["skills"] = [UserSkill.model_validate(s) for s in loads(skills)]
+            except Exception as e:
+                raise ValueError(f"Invalid skills JSON: {e}")
+
+        inventory = values.get("inventory")
+        if isinstance(inventory, str):
+            try:
+                values["inventory"] = [UserInventoryItem.model_validate(i) for i in loads(inventory)]
+            except Exception as e:
+                raise ValueError(f"Invalid inventory JSON: {e}")
+
+        return values
+
     async def save(self, conn: Connection) -> None:
         await conn.execute(
             """
@@ -47,7 +65,7 @@ class User(BaseModel):
                 skills, inventory
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-            ON CONFLICT (uid) DO UPDATE SET
+            ON CONFLICT (uid, channel_id) DO UPDATE SET
                 channel_id = EXCLUDED.channel_id,
                 username = EXCLUDED.username,
                 display_name = EXCLUDED.display_name,

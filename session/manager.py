@@ -116,10 +116,10 @@ class SessionManager():
             self._task.cancel()
             self._task = None
 
-    def enqueue(self, message: DiscordMessage) -> None:
+    async def enqueue(self, message: DiscordMessage) -> None:
         if self._meta.channel_id != message.channel.id:
             raise ValueError("Message channel does not match session channel.")
-        self._queue.put_nowait(message)
+        await self._queue.put(message)
 
     async def needs_character_creation(self, message: DiscordMessage) -> bool:
         """遊戲頻道中,發話玩家是否尚未建立角色(需先導向私訊創角)。
@@ -142,7 +142,7 @@ class SessionManager():
         - 其餘訊息:排入佇列由 worker 依序處理。
         """
         if not await self.needs_character_creation(message):
-            self.enqueue(message)
+            await self.enqueue(message)
             return
 
         author_id = message.author.id
@@ -403,10 +403,12 @@ class SessionManager():
             )
             user_openai = user_message.to_openai()
 
-            new_messages = await self._client.generate(
-                ctx=ctx,
-                messages=self._messages + [user_openai],
-            )
+            channel = discord_message.channel
+            async with channel.typing():
+                new_messages = await self._client.generate(
+                    ctx=ctx,
+                    messages=self._messages + [user_openai],
+                )
 
             self._messages.append(user_openai)
             self._messages.extend(new_messages)

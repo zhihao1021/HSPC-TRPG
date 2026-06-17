@@ -6,7 +6,7 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 from orjson import dumps, loads
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_snowflake import SnowflakeId, SnowflakeGenerator
 
 from typing import Literal, Optional, Self, TypeAlias
@@ -32,6 +32,16 @@ class Message(BaseModel):
     reasoning_content: Optional[str] = None
     tool_calls: Optional[list[ChatCompletionMessageFunctionToolCallParam]] = None
     tool_call_id: Optional[str] = None
+
+    @model_validator(mode="before")
+    def validate_tool_calls(cls, values: dict) -> dict:
+        tool_calls = values.get("tool_calls")
+        if isinstance(tool_calls, str):
+            try:
+                values["tool_calls"] = loads(tool_calls)
+            except Exception as e:
+                raise ValueError(f"Invalid tool_calls JSON: {e}")
+        return values
 
     async def save(self, conn: Connection) -> None:
         await conn.execute(

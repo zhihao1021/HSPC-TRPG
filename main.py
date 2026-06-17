@@ -2,7 +2,7 @@
 
 # from argparse import ArgumentParser
 from asyncio import run
-from logging import basicConfig, INFO
+# from logging import basicConfig, INFO
 
 from bot import start
 from db import init_db
@@ -26,11 +26,11 @@ async def main():
 if __name__ == "__main__":
     # args = parse_args()
     # load_dotenv(dotenv_path=args.env, override=True)
-    basicConfig(
-        level=INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    # basicConfig(
+    #     level=INFO,
+    #     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    #     datefmt="%Y-%m-%d %H:%M:%S",
+    # )
     try:
         run(main=main())
     except KeyboardInterrupt:
