@@ -17,7 +17,7 @@ def setup_logging() -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     formatter = Formatter(
-        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        fmt="%(asctime)s [%(levelname)s][%(name)s]: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 

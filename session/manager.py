@@ -6,8 +6,8 @@ from tokenizers import Tokenizer
 from asyncio import CancelledError, gather, get_running_loop, Task
 from asyncio.queues import Queue as AsyncQueue
 from datetime import datetime
+from logging import getLogger
 from os import urandom
-from traceback import print_exc
 from typing import cast, Optional
 
 from config import CONFIG
@@ -23,6 +23,8 @@ from type.chat import DeepseekChatCompletionMessageParam
 TOKENIZER = Tokenizer.from_file("tokenizer.json")
 
 DISCORD_MSG_LIMIT = 2000
+
+logger = getLogger(__name__)
 
 
 def _resolve_mentions(message: DiscordMessage) -> str:
@@ -172,6 +174,10 @@ class SessionManager():
         if author_id in self._chargen_inflight:
             return
         self._chargen_inflight.add(author_id)
+        logger.info(
+            "玩家 %s 在頻道 %s 觸發角色創建",
+            author_id, int(self._meta.channel_id),
+        )
         try:
             await self._host.begin_chargen(
                 game_channel_id=int(self._meta.channel_id),
@@ -211,12 +217,23 @@ class SessionManager():
 
     async def recalculate_tokens(self) -> int:
         """重新依目前(摘要後)的對話內容計算 token 用量並存檔,回傳新數值。"""
+        before = self._meta.token_usage
         await self._recalc_token(save=True)
-        return self._meta.token_usage
+        after = self._meta.token_usage
+        logger.info(
+            "頻道 %s 重新計算 token 用量: %d -> %d",
+            int(self._meta.channel_id), before, after,
+        )
+        return after
 
     async def check_and_summarize(self) -> None:
         if self._meta.token_usage < self._context_limit:
             return
+
+        logger.info(
+            "頻道 %s 觸發 context 摘要壓縮(token_usage=%d >= limit=%d)",
+            int(self._meta.channel_id), self._meta.token_usage, self._context_limit,
+        )
 
         last_summary = self._meta.summary
         async with get_db() as conn:
@@ -246,6 +263,11 @@ class SessionManager():
             await self._fetch_messages()
             await self._recalc_token(save=False)
             await self._meta.save(conn=conn)
+
+        logger.info(
+            "頻道 %s 摘要壓縮完成,壓縮後 token_usage=%d",
+            int(self._meta.channel_id), self._meta.token_usage,
+        )
 
     # ----- 脈絡與訊息轉換 -----
 
@@ -466,8 +488,14 @@ class SessionManager():
                 for content in str_content
             ])
 
-            self._meta.token_usage += sum(token_counts)
+            added_tokens = sum(token_counts)
+            self._meta.token_usage += added_tokens
             await self._meta.save(conn)
+
+        logger.info(
+            "頻道 %s 對話完成,本次新增 %d tokens(累計 %d)",
+            channel_id, added_tokens, self._meta.token_usage,
+        )
 
         reply_content, reasoning = self._extract_reply(new_messages)
         await self._send(
@@ -480,6 +508,10 @@ class SessionManager():
 
         # 創角完成 -> 收尾並結束此 session
         if self._meta.kind == "chargen" and ctx.character_created:
+            logger.info(
+                "玩家 %s 完成角色創建「%s」",
+                self._meta.chargen_owner_id, ctx.owner_display_name or "冒險者",
+            )
             await self._host.finish_chargen(
                 dm_channel_id=channel_id,
                 game_channel_id=(
@@ -507,5 +539,8 @@ class SessionManager():
             except CancelledError:
                 return
             except Exception:  # noqa: BLE001 - 單則訊息失敗不應終止 worker
-                print_exc()
+                logger.exception(
+                    "處理頻道 %s 的訊息時發生未預期錯誤",
+                    int(self._meta.channel_id),
+                )
                 continue

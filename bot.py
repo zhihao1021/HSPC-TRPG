@@ -1,9 +1,13 @@
 from discord import Intents, Message as DiscordMessage
 
+from logging import getLogger
+
 from db import get_db
 from model.session import Session
 from session.manager import SessionManager
 from type.bot import TRPGBot
+
+logger = getLogger(__name__)
 
 EXTENSIONS = [
     "commands.start",
@@ -22,7 +26,7 @@ bot = TRPGBot(intents=intents)
 
 @bot.event
 async def on_ready() -> None:
-    print(f"Logged in as {bot.user}")
+    logger.info("Logged in as %s", bot.user)
 
     async with get_db() as conn:
         sessions = await Session.get_all(conn=conn)
@@ -37,7 +41,7 @@ async def on_ready() -> None:
         bot.sessions[key] = manager
         loaded += 1
 
-    print(f"已載入 {loaded} 個進行中的 session")
+    logger.info("已載入 %d 個進行中的 session", loaded)
 
 
 @bot.event

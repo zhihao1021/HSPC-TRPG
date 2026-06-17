@@ -6,13 +6,15 @@ from discord import (
 )
 from discord.abc import Messageable
 
-from traceback import print_exc
+from logging import getLogger
 from typing import Optional, Union
 
 from db import get_db
 from model.session import Session
 from session.host import SessionHost
 from session.manager import SessionManager
+
+logger = getLogger(__name__)
 
 # 頻道內「隱藏提示」訊息的自動消失秒數
 HIDDEN_NOTICE_DELETE_AFTER = 30.0
@@ -42,7 +44,7 @@ class BotSessionHost():
                 mention_author=True,
             )
         except Exception:  # noqa: BLE001 - 訊息可能已被刪除等
-            print_exc()
+            logger.exception("傳送隱藏提示失敗")
 
     def resolve_display_name(
         self,
@@ -78,7 +80,7 @@ class BotSessionHost():
         try:
             dm = await author.create_dm()
         except Exception:  # noqa: BLE001 - 玩家可能關閉私訊
-            print_exc()
+            logger.exception("無法為玩家 %s 建立私訊頻道", author.id)
             await self._hidden_notice(
                 trigger,
                 "你還沒有冒險角色,但我無法私訊你。請開啟此伺服器的私訊權限後再發言一次。",
@@ -125,7 +127,7 @@ class BotSessionHost():
             try:
                 await dm.send("✅ 角色建立完成!請回到遊戲頻道,開始你的冒險吧。")
             except Exception:  # noqa: BLE001
-                print_exc()
+                logger.exception("傳送創角完成訊息失敗(dm=%s)", dm_channel_id)
 
         game_channel = self._get_messageable(game_channel_id)
         if game_channel is not None:
@@ -134,7 +136,7 @@ class BotSessionHost():
                     f"🎉 <@{owner_id}> 的角色「{display_name}」已準備就緒,踏入了這場冒險!"
                 )
             except Exception:  # noqa: BLE001
-                print_exc()
+                logger.exception("傳送遊戲頻道公告失敗(channel=%s)", game_channel_id)
 
 
 class TRPGBot(Bot):

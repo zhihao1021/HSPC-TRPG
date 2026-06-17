@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from orjson import dumps
 
 from inspect import isawaitable, signature
+from logging import getLogger
 from typing import (
     Any,
     Callable,
@@ -18,6 +19,8 @@ from typing import (
 )
 
 from .types.chat_context import ChatContext, SessionKind
+
+logger = getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 U = TypeVar("U", bound=Any)
@@ -125,6 +128,11 @@ class ToolBase():
         tool = cls._registered_tools.get(function_name)
         if tool is None:
             return None
+
+        logger.info(
+            "工具呼叫: %s args=%s",
+            function_name, tool_call.function.arguments,
+        )
 
         result = tool.call(ctx, tool_call)
         if isawaitable(result):
