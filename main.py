@@ -1,10 +1,45 @@
-from asyncio import all_tasks, ensure_future, gather, run
-from logging import basicConfig, INFO
+from asyncio import all_tasks, ensure_future, gather
+from logging import Formatter, getLogger, INFO, StreamHandler
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 from signal import SIGINT, SIGTERM
+from sys import stdout
 
 from bot import bot
 from config import CONFIG
 from db import init_db
+
+LOG_DIR = Path("logs")
+
+
+def setup_logging() -> None:
+    """設定 root logger:同時輸出到 stdout 與 logs/ 下的檔案(每日自動輪轉)。"""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    formatter = Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    stream_handler = StreamHandler(stdout)
+    stream_handler.setFormatter(formatter)
+
+    # 每天午夜輪轉一次,保留所有歷史紀錄(backupCount=0 代表不刪舊檔)
+    # 例如 bot.log, bot.log.2026-06-18, bot.log.2026-06-17, ...
+    file_handler = TimedRotatingFileHandler(
+        filename=LOG_DIR / "bot.log",
+        when="midnight",
+        interval=1,
+        backupCount=0,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(formatter)
+
+    root = getLogger()
+    root.setLevel(INFO)
+    root.handlers.clear()
+    root.addHandler(stream_handler)
+    root.addHandler(file_handler)
 
 
 def start():
@@ -62,13 +97,7 @@ def start():
 
 
 if __name__ == "__main__":
-    # args = parse_args()
-    # load_dotenv(dotenv_path=args.env, override=True)
-    basicConfig(
-        level=INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    setup_logging()
     try:
         start()
     except KeyboardInterrupt:
