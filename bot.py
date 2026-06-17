@@ -1,12 +1,10 @@
 from discord import Intents, Message as DiscordMessage
 
-from config import CONFIG
 from db import get_db
 from model.session import Session
 from session.manager import SessionManager
 from type.bot import TRPGBot
 
-# 一個 command 一個檔案,放在 commands/ 套件中,以 Cog extension 載入。
 EXTENSIONS = [
     "commands.start",
     "commands.status",
@@ -54,7 +52,3 @@ async def on_message(message: DiscordMessage) -> None:
 
 for _extension in EXTENSIONS:
     bot.load_extension(_extension)
-
-
-async def start():
-    await bot.start(CONFIG.discord.token)
