@@ -10,6 +10,8 @@ EXTENSIONS = [
     "commands.status",
     "commands.roster",
     "commands.roster_admin",
+    "commands.recalc_tokens",
+    "commands.session_status",
 ]
 
 intents = Intents.default()

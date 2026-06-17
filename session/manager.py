@@ -205,6 +205,15 @@ class SessionManager():
             async with get_db() as conn:
                 await self._meta.save(conn=conn)
 
+    @property
+    def token_usage(self) -> int:
+        return self._meta.token_usage
+
+    async def recalculate_tokens(self) -> int:
+        """重新依目前(摘要後)的對話內容計算 token 用量並存檔,回傳新數值。"""
+        await self._recalc_token(save=True)
+        return self._meta.token_usage
+
     async def check_and_summarize(self) -> None:
         if self._meta.token_usage < self._context_limit:
             return
