@@ -33,13 +33,6 @@ class BotSessionHost():
         return channel if isinstance(channel, Messageable) else None
 
     @staticmethod
-    def _channel_link(message: DiscordMessage) -> str:
-        channel_id = message.channel.id
-        if message.guild is not None:
-            return f"https://discord.com/channels/{message.guild.id}/{channel_id}"
-        return f"<#{channel_id}>"
-
-    @staticmethod
     async def _hidden_notice(message: DiscordMessage, text: str) -> None:
         """以『自動消失的回覆』提示玩家,降低對遊戲的干擾。"""
         try:
@@ -109,14 +102,8 @@ class BotSessionHost():
             "你還沒有冒險角色!我已私訊你進行創角,請查看私訊並依指示完成,稍後再回到頻道行動。",
         )
 
-        try:
-            await dm.send(
-                f"👋 這裡是**角色創建**私訊。你正在為遊戲頻道 {self._channel_link(trigger)} "
-                "建立角色,完成後請回到該頻道開始冒險。"
-            )
-        except Exception:  # noqa: BLE001
-            print_exc()
-
+        # 創角開場由 LLM 產生(包含打招呼與第一個問題),不再額外送一則寫死的歡迎訊息,
+        # 避免私訊裡出現兩則重複的「開始創角」訊息。
         await manager.send_opening(dm)
 
     async def finish_chargen(

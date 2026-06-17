@@ -41,7 +41,8 @@ def _build_player_block(message: DiscordMessage, now: datetime) -> str:
     author = message.author
     injection_id = urandom(4).hex()
     return (
-        f"{now.strftime('%Y-%m-%d %H:%M:%S')} from {author.display_name} (ID: {author.id})\n"
+        f"[Datetime]{now.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"[Player]{author.display_name} (ID: {author.id})\n"
         f"[MessageStart][{injection_id}]\n"
         f"{resolved}\n"
         f"[MessageEnd][{injection_id}]\n"
