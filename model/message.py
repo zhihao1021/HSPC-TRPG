@@ -72,12 +72,15 @@ class Message(BaseModel):
                 content=self.content,
             )
         if self.role == "assistant":
-            return DeepseekChatCompletionAssistantMessageParam(
+            result = DeepseekChatCompletionAssistantMessageParam(
                 role=self.role,
                 content=self.content,
                 reasoning_content=self.reasoning_content,
-                tool_calls=self.tool_calls or [],
+                # tool_calls=self.tool_calls or None,
             )
+            if self.tool_calls:
+                result["tool_calls"] = self.tool_calls
+            return result
         if self.role == "tool":
             if self.content is None:
                 raise ValueError("Tool messages must have content")
