@@ -46,7 +46,7 @@ class User(BaseModel):
                 state_str, state_dex, state_con, state_int, state_wis, state_cha,
                 skills, inventory
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             ON CONFLICT (uid) DO UPDATE SET
                 channel_id = EXCLUDED.channel_id,
                 username = EXCLUDED.username,
