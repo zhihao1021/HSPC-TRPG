@@ -25,9 +25,7 @@ def load_roster_file(path: Optional[str] = None) -> list[RosterTeam]:
     teams: list[RosterTeam] = []
     for item in data.get("teams", []):
         name = str(item["name"]).strip()
-        reveal_date = datetime.fromisoformat(item["reveal_date"]).replace(
-            tzinfo=timezone.utc
-        )
+        reveal_date = datetime.fromisoformat(item["reveal_date"])
         teams.append(RosterTeam(name=name, reveal_date=reveal_date))
 
     teams.sort(key=lambda t: t.reveal_date)
