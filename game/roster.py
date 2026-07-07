@@ -25,7 +25,7 @@ def load_roster_file(path: Optional[str] = None) -> list[RosterTeam]:
     teams: list[RosterTeam] = []
     for item in data.get("teams", []):
         name = str(item["name"]).strip()
-        reveal_date = datetime.strptime(item["reveal_date"], "%Y-%m-%d").replace(
+        reveal_date = datetime.fromisoformat(item["reveal_date"]).replace(
             tzinfo=timezone.utc
         )
         teams.append(RosterTeam(name=name, reveal_date=reveal_date))
@@ -78,7 +78,8 @@ async def write_revealed_file(
 ) -> Path:
     """將某頻道目前已公布的隊伍輸出到 <channel_id>.json,回傳檔案路徑。"""
     entries = await Roster.get_all_by_channel_id(conn, channel_id, revealed=True)
-    entries.sort(key=lambda e: e.revealed_at or datetime.min.replace(tzinfo=timezone.utc))
+    entries.sort(key=lambda e: e.revealed_at or datetime.min.replace(
+        tzinfo=timezone.utc))
 
     out_dir = Path(dir_path or CONFIG.game.roster.revealed_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
