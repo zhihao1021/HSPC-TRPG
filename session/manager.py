@@ -505,6 +505,10 @@ class SessionManager():
             reply_to=discord_message,
             reasoning=reasoning,
         )
+        if not reply_content:
+            logger.warning(
+                f"頻道 {channel_id} 無法生成回覆內容: {new_messages}",
+            )
 
         # 創角完成 -> 收尾並結束此 session
         if self._meta.kind == "chargen" and ctx.character_created:
