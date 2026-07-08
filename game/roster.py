@@ -65,8 +65,8 @@ def classify(entries: list[Roster], today: date) -> RosterStatus:
     return RosterStatus(revealed=revealed, due=due, locked=locked)
 
 
-def is_due(entry: Roster, today: date) -> bool:
-    return not entry.revealed and entry.suggested.date() <= today
+def is_due(entry: Roster, today: datetime) -> bool:
+    return not entry.revealed and entry.suggested <= today
 
 
 async def write_revealed_file(

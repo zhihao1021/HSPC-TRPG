@@ -69,7 +69,7 @@ class RosterAdminCog(Cog):
 
             entries = await Roster.get_all_by_channel_id(conn, channel_id)
 
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(timezone.utc)
         entries.sort(key=lambda e: e.suggested)
 
         embed = Embed(title="🛠️ 晉級名單管理", colour=Colour.blurple())
@@ -78,7 +78,7 @@ class RosterAdminCog(Cog):
         else:
             lines = []
             for entry in entries:
-                date_text = entry.suggested.strftime("%Y-%m-%d")
+                date_text = entry.suggested.isoformat()
                 if entry.revealed:
                     state = "✅ 已公布"
                 elif roster_game.is_due(entry, today):

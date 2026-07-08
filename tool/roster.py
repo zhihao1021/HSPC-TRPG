@@ -31,13 +31,13 @@ class ListTeamsParam(BaseModel):
     "reveal dates."
 )
 async def list_teams(context: ChatContext, params: ListTeamsParam) -> dict:
-    today = context.now.date()
+    today = context.now
     entries = await Roster.get_all_by_channel_id(context.conn, context.channel_id)
 
     def to_item(entry: Roster) -> dict:
         due = roster_game.is_due(entry, today)
         result = {
-            "suggested_date": entry.suggested.date().isoformat(),
+            "suggested_date": entry.suggested.isoformat(),
             "revealed": entry.revealed,
             "revealed_at": entry.revealed_at.isoformat() if entry.revealed_at else None,
             "due": due,
@@ -82,7 +82,7 @@ async def reveal_team(context: ChatContext, params: RevealTeamParam) -> str:
     if not team_name:
         return "Error: team_name is required."
 
-    today = context.now.date()
+    today = context.now
     entries = await Roster.get_all_by_channel_id(context.conn, context.channel_id)
     target = next((e for e in entries if e.name == team_name), None)
     if target is None:
