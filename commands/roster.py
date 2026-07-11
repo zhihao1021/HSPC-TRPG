@@ -55,7 +55,9 @@ class RosterCog(Cog):
             for entry in revealed:
                 when = entry.revealed_at or entry.suggested
                 lines.append(f"**{entry.name}** — 公布於 {when.strftime('%Y-%m-%d')}")
-            embed.add_field(name="名單", value="\n".join(lines), inline=False)
+
+            embed.add_field(name="名單-1", value="\n".join(lines[:18]), inline=False)
+            embed.add_field(name="名單-2", value="\n".join(lines[18:]), inline=False)
 
         await ctx.respond(embed=embed)
 
